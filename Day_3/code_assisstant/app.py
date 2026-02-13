@@ -67,195 +67,279 @@ def build_vectorstore():
 vectorstore = build_vectorstore()
 
 # 🔒 Coding-only filter
-CODING_KEYWORDS = [
-    "python", "java", "c", "c++", "javascript", "html", "css",
-    "sql", "mysql", "postgresql", "mongodb", "flask", "spring",
-    "react", "node", "api", "backend", "frontend",
-    "function", "class", "object", "loop", "array", "string",
-    "database", "query", "algorithm", "data structure",
-    "error", "exception", "bug", "debug", "compile",
-    "code", "program", "build", "develop", "implement"
+PYTHON_KEYWORDS = [
+    "python", "py", "flask", "django",
+    "loop", "for", "while",
+    "function", "def",
+    "class", "object",
+    "list", "dict", "tuple", "set",
+    "string", "int", "float",
+    "exception", "error", "debug",
+    "pandas", "numpy",
+    "import", "module",
+    "decorator", "lambda",
+    "async", "await",
+    "algorithm", "data structure"
 ]
+
 
 def is_allowed(message: str) -> bool:
     msg = message.lower()
-    return any(word in msg for word in CODING_KEYWORDS)
+
+    # Must mention python explicitly OR contain strong python patterns
+    if "python" in msg:
+        return True
+
+    return any(word in msg for word in PYTHON_KEYWORDS)
 
 @app.route("/")
 def home():
     return render_template_string("""
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Coding RAG Assistant</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <style>
-        body {
-            margin: 0;
-            font-family: 'Segoe UI', sans-serif;
-            background: linear-gradient(135deg, #0f0f0f, #1a1a1a);
-            color: white;
-            display: flex;
-            justify-content: center;
-        }
+<meta charset="UTF-8">
+<title>Python RAG Assistant</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-        .chat-container {
-            width: 100%;
-            max-width: 800px;
-            height: 100vh;
-            display: flex;
-            flex-direction: column;
-        }
+<!-- Fonts -->
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 
-        .header {
-            padding: 20px;
-            font-size: 22px;
-            font-weight: bold;
-            border-bottom: 1px solid #333;
-            background: #111;
-        }
+<!-- Markdown -->
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 
-        .messages {
-            flex: 1;
-            overflow-y: auto;
-            padding: 20px;
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
-        }
+<!-- Syntax Highlight -->
+<link rel="stylesheet"
+href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
 
-        .message {
-            max-width: 75%;
-            padding: 12px 16px;
-            border-radius: 15px;
-            line-height: 1.5;
-            animation: fadeIn 0.2s ease-in-out;
-        }
+<style>
+:root{
+    --bg1:#0f172a;
+    --bg2:#1e293b;
+    --glass:rgba(255,255,255,0.06);
+    --border:rgba(255,255,255,0.08);
+    --text:#f8fafc;
+    --muted:#94a3b8;
+    --accent:#3b82f6;
+}
 
-        .user {
-            align-self: flex-end;
-            background: #2563eb;
-            border-bottom-right-radius: 5px;
-        }
+body{
+    margin:0;
+    font-family:'Inter',sans-serif;
+    background:linear-gradient(135deg,var(--bg1),var(--bg2));
+    height:100vh;
+    display:flex;
+    color:var(--text);
+}
 
-        .bot {
-            align-self: flex-start;
-            background: #2a2a2a;
-            border-bottom-left-radius: 5px;
-        }
+/* Sidebar */
+.sidebar{
+    width:240px;
+    background:rgba(0,0,0,0.4);
+    border-right:1px solid var(--border);
+    padding:25px;
+}
 
-        .input-area {
-            display: flex;
-            padding: 15px;
-            border-top: 1px solid #333;
-            background: #111;
-        }
+.sidebar h2{
+    font-size:18px;
+    margin-bottom:20px;
+}
 
-        input {
-            flex: 1;
-            padding: 12px;
-            border-radius: 10px;
-            border: none;
-            outline: none;
-            background: #1f1f1f;
-            color: white;
-            font-size: 15px;
-        }
+.status{
+    font-size:13px;
+    color:var(--muted);
+}
 
-        button {
-            margin-left: 10px;
-            padding: 12px 18px;
-            border-radius: 10px;
-            border: none;
-            cursor: pointer;
-            background: #2563eb;
-            color: white;
-            font-weight: bold;
-            transition: 0.2s;
-        }
+/* Chat Container */
+.chat{
+    flex:1;
+    display:flex;
+    flex-direction:column;
+}
 
-        button:hover {
-            background: #1d4ed8;
-        }
+/* Header */
+.header{
+    padding:20px;
+    border-bottom:1px solid var(--border);
+    font-weight:600;
+    font-size:18px;
+}
 
-        .typing {
-            font-style: italic;
-            opacity: 0.6;
-        }
+/* Messages */
+.messages{
+    flex:1;
+    padding:30px;
+    overflow-y:auto;
+    display:flex;
+    flex-direction:column;
+    gap:20px;
+}
 
-        @keyframes fadeIn {
-            from {opacity: 0; transform: translateY(5px);}
-            to {opacity: 1; transform: translateY(0);}
-        }
+.message{
+    max-width:75%;
+    padding:16px;
+    border-radius:18px;
+    line-height:1.6;
+    animation:fadeIn 0.2s ease;
+}
 
-        @media (max-width: 600px) {
-            .message { max-width: 90%; }
-        }
-    </style>
+.user{
+    align-self:flex-end;
+    background:var(--accent);
+}
+
+.bot{
+    align-self:flex-start;
+    background:var(--glass);
+    border:1px solid var(--border);
+}
+
+/* Code Blocks */
+pre{
+    background:#0f172a;
+    padding:14px;
+    border-radius:12px;
+    overflow-x:auto;
+}
+
+code{
+    font-family:monospace;
+}
+
+/* Input */
+.input-area{
+    padding:20px;
+    border-top:1px solid var(--border);
+    display:flex;
+    gap:10px;
+    background:rgba(0,0,0,0.4);
+}
+
+input{
+    flex:1;
+    padding:14px;
+    border-radius:14px;
+    border:none;
+    background:rgba(255,255,255,0.05);
+    color:white;
+    font-size:15px;
+    outline:none;
+}
+
+button{
+    padding:14px 22px;
+    border-radius:14px;
+    border:none;
+    background:var(--accent);
+    color:white;
+    font-weight:600;
+    cursor:pointer;
+    transition:0.2s;
+}
+
+button:hover{
+    transform:scale(1.05);
+}
+
+/* Typing Animation */
+.typing::after{
+    content:"...";
+    animation:dots 1.5s infinite;
+}
+
+@keyframes dots{
+    0%{content:".";}
+    33%{content:"..";}
+    66%{content:"...";}
+}
+
+@keyframes fadeIn{
+    from{opacity:0;transform:translateY(5px);}
+    to{opacity:1;transform:translateY(0);}
+}
+</style>
 </head>
+
 <body>
 
-<div class="chat-container">
-    <div class="header">💻 Coding RAG Assistant</div>
+<div class="sidebar">
+    <h2>🐍 Python RAG</h2>
+    <div class="status">
+        Python-only mode 🔒<br>
+        Documents loaded ✔️
+    </div>
+</div>
+
+<div class="chat">
+    <div class="header">Python Documentation Assistant</div>
+
     <div class="messages" id="messages"></div>
 
     <div class="input-area">
-        <input type="text" id="message" placeholder="Ask coding question..." onkeydown="handleKey(event)">
+        <input type="text" id="message"
+        placeholder="Ask about Python..."
+        onkeydown="handleKey(event)">
         <button onclick="sendMessage()">Send</button>
     </div>
 </div>
 
 <script>
 
-function handleKey(e) {
-    if (e.key === "Enter") {
+function handleKey(e){
+    if(e.key==="Enter"){
         sendMessage();
     }
 }
 
-function addMessage(text, type) {
-    const msgDiv = document.createElement("div");
-    msgDiv.classList.add("message", type);
-    msgDiv.innerHTML = text.replace(/\\n/g, "<br>");
-    document.getElementById("messages").appendChild(msgDiv);
-    document.getElementById("messages").scrollTop =
+function addMessage(text,type){
+    const div=document.createElement("div");
+    div.classList.add("message",type);
+    div.innerHTML=marked.parse(text);
+    document.getElementById("messages").appendChild(div);
+
+    document.querySelectorAll("pre code").forEach((block)=>{
+        hljs.highlightElement(block);
+    });
+
+    document.getElementById("messages").scrollTop=
         document.getElementById("messages").scrollHeight;
 }
 
-function sendMessage() {
-    const input = document.getElementById("message");
-    const msg = input.value.trim();
-    if (!msg) return;
+function sendMessage(){
+    const input=document.getElementById("message");
+    const msg=input.value.trim();
+    if(!msg) return;
 
-    addMessage(msg, "user");
-    input.value = "";
+    addMessage(msg,"user");
+    input.value="";
 
-    const typingDiv = document.createElement("div");
-    typingDiv.classList.add("message", "bot", "typing");
-    typingDiv.id = "typing";
-    typingDiv.innerHTML = "Typing...";
-    document.getElementById("messages").appendChild(typingDiv);
+    const typing=document.createElement("div");
+    typing.classList.add("message","bot","typing");
+    typing.id="typing";
+    typing.innerHTML="Thinking";
+    document.getElementById("messages").appendChild(typing);
 
-    fetch("/chat", {
-        method: "POST",
-        headers: {"Content-Type": "application/json"},
-        body: JSON.stringify({message: msg})
+    fetch("/chat",{
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({message:msg})
     })
-    .then(res => res.json())
-    .then(data => {
+    .then(res=>res.json())
+    .then(data=>{
         document.getElementById("typing").remove();
-        addMessage(data.reply, "bot");
+        addMessage(data.reply,"bot");
     })
-    .catch(() => {
+    .catch(()=>{
         document.getElementById("typing").remove();
-        addMessage("⚠️ Error connecting to server.", "bot");
+        addMessage("⚠️ Server error.","bot");
     });
 }
-
 </script>
 
 </body>
 </html>
+
 """)
 
 
@@ -266,7 +350,7 @@ def chat():
 
     if not is_allowed(user_msg):
         return jsonify({
-            "reply": "❌ This assistant only supports coding-related questions."
+            "reply": "❌ This assistant only supports PYTHON-related questions."
         })
 
     if vectorstore is None:
@@ -275,7 +359,9 @@ def chat():
         })
 
     # 🔍 RAG retrieval
-    docs = vectorstore.similarity_search(user_msg, k=3)
+    docs = vectorstore.similarity_search(
+        f"Python topic: {user_msg}", k=3
+    )
     context = "\n\n".join([doc.page_content for doc in docs])
 
     payload = {
@@ -283,7 +369,7 @@ def chat():
         "messages": [
             {
                 "role": "system",
-                "content": "You are an expert coding assistant. Use ONLY the provided context to answer. If not in context, say you don't know."
+                "content": "You are an expert Python assistant. Answer ONLY Python-related questions using the provided context. If the question is not about Python, refuse politely."
             },
             {
                 "role": "user",
